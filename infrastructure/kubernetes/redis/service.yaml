@@ -1,0 +1,29 @@
+# Redis Cache Service Manifest
+# Version: v1
+# Purpose: Exposes Redis caching layer for internal cluster access
+# Dependencies: redis-deployment.yaml (redis-cache deployment)
+
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: redis-cache
+  namespace: default
+  labels:
+    app: redis
+    component: cache
+    tier: backend
+
+spec:
+  # Using ClusterIP to ensure Redis is only accessible within the cluster
+  type: ClusterIP
+  
+  # Port configuration for Redis standard port
+  ports:
+    - port: 6379          # Service port
+      targetPort: 6379    # Container port
+      protocol: TCP       # Transport protocol
+  
+  # Selector to match Redis deployment pods
+  selector:
+    app: redis
