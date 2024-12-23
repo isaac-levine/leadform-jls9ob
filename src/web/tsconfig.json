@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    // Modern JavaScript features support
+    "target": "es2022",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    
+    // Module system configuration
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    
+    // Next.js specific settings
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    
+    // Path aliases for clean imports
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    
+    // Strict type checking
+    "strict": true,
+    "noEmit": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true
+  },
+  
+  // File inclusion/exclusion
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
