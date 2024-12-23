@@ -1,0 +1,35 @@
+Primary Format: JPEG
+Dimensions: 1920x1080px (desktop version)
+Additional Responsive Versions Required:
+- Tablet: 1024x768px
+- Mobile: 640x960px
+
+Image Optimization Requirements:
+1. JPEG Quality: 80%
+2. WebP Version: 75% quality
+3. File naming: Include content hash for versioning
+4. Compression: Optimized for web delivery while maintaining visual quality
+
+The image should be:
+- Used as a full-screen cover background
+- Support both light and dark theme modes
+- Maintain minimum 4.5:1 contrast ratio with overlaid content
+- Implement responsive behavior across devices
+- Follow WCAG 2.1 Level AA accessibility guidelines
+
+Performance Optimizations:
+- Enable eager loading for above-fold visibility
+- Implement responsive image loading using srcset
+- Configure proper caching headers:
+  Cache-Control: public, max-age=31536000, immutable
+- Include ETag for caching optimization
+
+CSS Integration:
+- Apply classes: bg-auth-pattern, bg-cover, bg-center, bg-no-repeat
+- Support transition-opacity with 300ms duration
+- Configure in Tailwind theme under backgroundImage
+
+Accessibility:
+- Treat as decorative background (no alt text required)
+- Support reduced motion preferences
+- Ensure proper contrast ratios in both themes
