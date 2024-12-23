@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg 
+  width="240" 
+  height="60" 
+  viewBox="0 0 240 60" 
+  preserveAspectRatio="xMidYMid meet" 
+  version="1.1" 
+  xmlns="http://www.w3.org/2000/svg"
+  role="img"
+  aria-label="AI-Driven Lead Capture & SMS Platform Logo"
+  focusable="false"
+>
+  <!-- Background shape with rounded corners -->
+  <rect 
+    x="10" 
+    y="10" 
+    width="220" 
+    height="40" 
+    rx="8" 
+    fill="transparent"
+    stroke="currentColor" 
+    stroke-width="2"
+  />
+
+  <!-- AI Icon -->
+  <g transform="translate(30, 15)">
+    <path
+      d="M15 30v-5m0-10V10m7.5 20v-5m0-10V10M5 20h25"
+      stroke="currentColor"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      fill="none"
+    />
+  </g>
+
+  <!-- Message Bubble Icon -->
+  <g transform="translate(70, 15)">
+    <path
+      d="M5 10h20v15H15l-5 5v-5H5V10z"
+      stroke="currentColor"
+      stroke-width="2"
+      fill="none"
+    />
+    <circle cx="12" cy="17.5" r="1.5" fill="currentColor"/>
+    <circle cx="18" cy="17.5" r="1.5" fill="currentColor"/>
+  </g>
+
+  <!-- Text "LEAD CAPTURE" -->
+  <text
+    x="120"
+    y="28"
+    font-family="Arial, sans-serif"
+    font-size="12"
+    font-weight="bold"
+    fill="currentColor"
+    text-anchor="middle"
+  >
+    LEAD CAPTURE
+  </text>
+
+  <!-- Text "SMS PLATFORM" -->
+  <text
+    x="120"
+    y="42"
+    font-family="Arial, sans-serif"
+    font-size="12"
+    font-weight="bold"
+    fill="currentColor"
+    text-anchor="middle"
+  >
+    SMS PLATFORM
+  </text>
+
+  <!-- Decorative connecting lines -->
+  <path
+    d="M160 30h20M180 30l5-5 5 5-5 5z"
+    stroke="currentColor"
+    stroke-width="1.5"
+    fill="none"
+  />
+
+  <!-- Metadata -->
+  <metadata>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+             xmlns:dc="http://purl.org/dc/elements/1.1/">
+      <rdf:Description>
+        <dc:title>AI-Driven Lead Capture &amp; SMS Platform Logo</dc:title>
+        <dc:creator>Platform Design Team</dc:creator>
+        <dc:date>2024</dc:date>
+        <dc:rights>© 2024 AI-Driven Lead Capture &amp; SMS Platform</dc:rights>
+        <dc:format>image/svg+xml</dc:format>
+        <dc:description>Corporate logo featuring AI and messaging iconography with modern design elements</dc:description>
+      </rdf:Description>
+    </rdf:RDF>
+  </metadata>
+</svg>
