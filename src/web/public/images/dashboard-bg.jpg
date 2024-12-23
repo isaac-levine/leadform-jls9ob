@@ -1,0 +1,35 @@
+- Start Color: #f8fafc (very light blue-gray)
+- End Color: #f1f5f9 (light blue-gray)
+- Gradient Direction: 135 degrees
+
+Pattern Layer:
+- Subtle geometric grid pattern
+- Opacity: 5-10%
+- Scale: 40px grid
+- Color: #94a3b8 (medium blue-gray)
+
+Accent Elements:
+- Soft highlight areas
+- Opacity: 15-20%
+- Color: #ffffff
+- Position: Top-right and bottom-left corners
+```
+
+4. Responsive Versions Required:
+- Desktop: 1920x1080px (original)
+- Tablet: 1024x768px
+- Mobile: 768x1024px
+
+5. Optimization Requirements:
+- Progressive JPEG encoding
+- Chroma subsampling: 4:2:0
+- Stripped metadata
+- WebP alternative version
+- Content-based hash filename (e.g., dashboard-bg.[hash].jpg)
+
+6. Technical Properties:
+```
+Cache-Control: public, max-age=31536000, immutable
+Content-Type: image/jpeg
+ETag: Enabled
+X-Content-Type-Options: nosniff
