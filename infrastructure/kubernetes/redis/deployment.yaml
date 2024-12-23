@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-cache
+  namespace: default
+  labels:
+    app: redis
+    component: cache
+    tier: backend
+    environment: production
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "6379"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+      component: cache
+  template:
+    metadata:
+      labels:
+        app: redis
+        component: cache
+        tier: backend
+    spec:
+      # Security context for the pod
+      securityContext:
+        fsGroup: 999
+        runAsUser: 999
+        runAsNonRoot: true
+      containers:
+        - name: redis
+          # Using official Alpine-based Redis image for security and minimal footprint
+          image: redis:7.2-alpine
+          ports:
+            - containerPort: 6379
+              protocol: TCP
+              name: redis
+          # Resource limits and requests for proper scheduling and resource management
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+          # Mount custom Redis configuration from ConfigMap
+          volumeMounts:
+            - name: redis-config
+              mountPath: /usr/local/etc/redis/redis.conf
+              subPath: redis.conf
+              readOnly: true
+          # Health checking probes
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      # Volumes configuration for Redis config
+      volumes:
+        - name: redis-config
+          configMap:
+            name: redis-config
+            defaultMode: 0644
