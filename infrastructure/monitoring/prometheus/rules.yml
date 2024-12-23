@@ -1,0 +1,126 @@
+# Prometheus Rules Configuration v2.45.0
+# Defines alerting and recording rules for the Lead Capture & SMS Platform
+
+groups:
+  # Message Processing Performance Rules
+  - name: message_processing_rules
+    rules:
+      # Alert on message processing latency exceeding 5 seconds
+      - alert: message_processing_latency
+        expr: rate(message_processing_duration_seconds_sum[5m]) / rate(message_processing_duration_seconds_count[5m]) > 5
+        for: 5m
+        labels:
+          severity: critical
+          service: sms
+        annotations:
+          summary: High message processing latency
+          description: Message processing time exceeds 5 seconds threshold
+          
+      # Recording rule for message processing success rate
+      - record: message_processing_success_rate
+        expr: sum(rate(message_processing_total{status="success"}[5m])) / sum(rate(message_processing_total[5m]))
+
+  # Form Submission Performance Rules
+  - name: form_submission_rules
+    rules:
+      # Alert on form submission latency exceeding 2 seconds
+      - alert: form_submission_latency
+        expr: rate(form_submission_duration_seconds_sum[5m]) / rate(form_submission_duration_seconds_count[5m]) > 2
+        for: 5m
+        labels:
+          severity: critical
+          service: forms
+        annotations:
+          summary: High form submission latency
+          description: Form submission time exceeds 2 seconds threshold
+          
+      # Recording rule for form submission success rate
+      - record: form_submission_success_rate
+        expr: sum(rate(form_submission_total{status="success"}[5m])) / sum(rate(form_submission_total[5m]))
+
+  # System Availability Rules
+  - name: system_availability_rules
+    rules:
+      # Alert on service availability below 99.9%
+      - alert: service_availability
+        expr: avg_over_time(up{job="lead-capture-sms-platform"}[5m]) < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: Service availability below 99.9%
+          description: System availability has dropped below the required 99.9% threshold
+          
+      # Recording rule for system uptime
+      - record: system_uptime_percentage
+        expr: avg_over_time(up{job="lead-capture-sms-platform"}[1h]) * 100
+
+  # Resource Utilization Rules
+  - name: resource_utilization_rules
+    rules:
+      # Alert on high memory usage
+      - alert: high_memory_usage
+        expr: process_resident_memory_bytes / container_memory_limit_bytes > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: High memory utilization
+          description: Memory usage is above 85% of limit
+          
+      # Alert on high CPU usage
+      - alert: high_cpu_usage
+        expr: rate(process_cpu_seconds_total[5m]) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: High CPU utilization
+          description: CPU usage is above 85% threshold
+          
+      # Recording rule for average CPU utilization
+      - record: avg_cpu_utilization
+        expr: avg(rate(process_cpu_seconds_total[5m]))
+
+  # Business Metrics Rules
+  - name: business_metrics_rules
+    rules:
+      # Recording rule for lead conversion rate
+      - record: lead_conversion_rate
+        expr: sum(rate(leads_converted_total[1h])) / sum(rate(leads_captured_total[1h]))
+        
+      # Recording rule for AI response effectiveness
+      - record: ai_response_effectiveness
+        expr: sum(rate(ai_responses_successful_total[1h])) / sum(rate(ai_responses_total[1h]))
+        
+      # Alert on low lead capture rate
+      - alert: low_lead_capture_rate
+        expr: rate(leads_captured_total[1h]) < 1
+        for: 1h
+        labels:
+          severity: warning
+          service: business
+        annotations:
+          summary: Low lead capture rate
+          description: Lead capture rate has fallen below 1 per hour
+
+  # API Performance Rules
+  - name: api_performance_rules
+    rules:
+      # Alert on high API error rate
+      - alert: high_api_error_rate
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: api
+        annotations:
+          summary: High API error rate
+          description: API error rate is above 5%
+          
+      # Recording rule for API latency percentiles
+      - record: api_request_duration_p95
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
