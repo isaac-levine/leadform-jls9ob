@@ -37,7 +37,7 @@
     "jsonwebtoken": "^9.0.0",
     "libphonenumber-js": "^1.10.0",
     "mongodb": "^5.0.0",
-    "mongoose": "^7.0.0",
+    "mongoose": "^8.9.2",
     "mongoose-field-encryption": "^4.0.0",
     "morgan": "^1.10.0",
     "nanoid": "^3.3.4",
