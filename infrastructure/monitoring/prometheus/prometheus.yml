@@ -1,0 +1,85 @@
+# Prometheus Configuration v2.45.0
+# Main configuration file for monitoring the Lead Capture & SMS Platform
+
+# Global configuration settings
+global:
+  scrape_interval: 15s      # Default interval between metric scrapes
+  evaluation_interval: 15s  # Interval for evaluating rules
+  scrape_timeout: 10s      # Timeout for metric scrapes
+
+# Load rules files
+rule_files:
+  - "./rules.yml"          # Alert and recording rules for performance metrics
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: 
+          - "alertmanager:9093"
+
+# Scrape configurations for various components
+scrape_configs:
+  # Main application metrics
+  - job_name: "lead-capture-sms-platform"
+    metrics_path: "/metrics"
+    scheme: "http"
+    scrape_interval: 5s    # More frequent scraping for critical services
+    scrape_timeout: 4s
+    static_configs:
+      - targets: ["api:3000", "queue:3001"]
+        labels:
+          service: "backend"
+          component: "api"
+
+  # Form submission metrics
+  - job_name: "form-submissions"
+    metrics_path: "/metrics/forms"
+    scheme: "http"
+    scrape_interval: 5s    # Frequent scraping to meet 2s SLA
+    scrape_timeout: 4s
+    static_configs:
+      - targets: ["api:3000"]
+        labels:
+          service: "backend"
+          component: "forms"
+
+  # Message processing metrics
+  - job_name: "message-processing"
+    metrics_path: "/metrics/messages"
+    scheme: "http"
+    scrape_interval: 5s    # Frequent scraping to meet 5s SLA
+    scrape_timeout: 4s
+    static_configs:
+      - targets: ["queue:3001"]
+        labels:
+          service: "backend"
+          component: "messages"
+
+  # MongoDB metrics (using mongodb_exporter v0.35.0)
+  - job_name: "mongodb"
+    metrics_path: "/metrics"
+    scheme: "http"
+    static_configs:
+      - targets: ["mongodb-exporter:9216"]
+        labels:
+          service: "database"
+          component: "mongodb"
+
+  # Redis metrics (using redis_exporter v1.45.0)
+  - job_name: "redis"
+    metrics_path: "/metrics"
+    scheme: "http"
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+        labels:
+          service: "cache"
+          component: "redis"
+
+# Storage configuration
+storage:
+  tsdb:
+    path: "/prometheus"           # Data storage path
+    retention_time: "15d"         # Data retention period
+    retention_size: "10GB"        # Maximum storage size
+    wal_compression: true         # Enable WAL compression for better performance
