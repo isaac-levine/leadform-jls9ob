@@ -1,0 +1,303 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "datasource": "Prometheus",
+        "enable": true,
+        "expr": "changes(process_start_time_seconds{job=\"sms-platform\"}[5m])",
+        "iconColor": "rgba(255, 96, 96, 1)",
+        "name": "Deployments",
+        "tags": [
+          "deployment"
+        ]
+      }
+    ]
+  },
+  "description": "System metrics dashboard for Lead Capture & SMS Platform monitoring key performance indicators",
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Message Processing Performance",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(message_processing_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "95th Percentile",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(message_processing_total{status=\"success\"}[5m])) / sum(rate(message_processing_total[5m])) * 100",
+          "legendFormat": "Success Rate %",
+          "refId": "B"
+        }
+      ],
+      "thresholds": [
+        {
+          "value": 5,
+          "colorMode": "critical",
+          "op": "gt",
+          "fill": true,
+          "line": true,
+          "yaxis": "left"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "s",
+          "label": "Processing Time"
+        },
+        {
+          "format": "percent",
+          "label": "Success Rate"
+        }
+      ]
+    },
+    {
+      "title": "Form Submission Latency",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(form_submission_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "95th Percentile",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [
+        {
+          "value": 2,
+          "colorMode": "critical",
+          "op": "gt",
+          "fill": true,
+          "line": true,
+          "yaxis": "left"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "s",
+          "label": "Submission Time"
+        }
+      ]
+    },
+    {
+      "title": "System Resources",
+      "type": "row",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "collapsed": false,
+      "panels": [
+        {
+          "title": "Memory Usage",
+          "type": "gauge",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 9
+          },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "process_resident_memory_bytes{job=\"sms-platform\"} / 1024 / 1024",
+              "legendFormat": "Memory (MB)",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [
+            {
+              "value": 512,
+              "colorMode": "warning"
+            },
+            {
+              "value": 1024,
+              "colorMode": "critical"
+            }
+          ],
+          "format": "mbytes"
+        },
+        {
+          "title": "CPU Usage",
+          "type": "gauge",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 9
+          },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "rate(process_cpu_seconds_total{job=\"sms-platform\"}[5m]) * 100",
+              "legendFormat": "CPU %",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [
+            {
+              "value": 60,
+              "colorMode": "warning"
+            },
+            {
+              "value": 80,
+              "colorMode": "critical"
+            }
+          ],
+          "format": "percent"
+        },
+        {
+          "title": "Service Health",
+          "type": "stat",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 9
+          },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "avg_over_time(up{job=\"sms-platform\"}[24h]) * 100",
+              "legendFormat": "Uptime %",
+              "refId": "A"
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "value": 99.9,
+                "color": "red"
+              },
+              {
+                "value": 99.95,
+                "color": "yellow"
+              },
+              {
+                "value": 99.99,
+                "color": "green"
+              }
+            ]
+          },
+          "format": "percent"
+        }
+      ]
+    },
+    {
+      "title": "Queue Metrics",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sms_queue_size{job=\"sms-platform\"}",
+          "legendFormat": "Queue Size",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(sms_messages_processed_total{job=\"sms-platform\"}[5m])",
+          "legendFormat": "Processing Rate (msg/sec)",
+          "refId": "B"
+        }
+      ],
+      "thresholds": [
+        {
+          "value": 1000,
+          "colorMode": "warning",
+          "op": "gt",
+          "fill": true,
+          "line": true
+        }
+      ]
+    },
+    {
+      "title": "Database Connections",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "mongodb_connections{state=\"current\",job=\"sms-platform\"}",
+          "legendFormat": "Current Connections",
+          "refId": "A"
+        },
+        {
+          "expr": "mongodb_connections{state=\"available\",job=\"sms-platform\"}",
+          "legendFormat": "Available Connections",
+          "refId": "B"
+        }
+      ],
+      "thresholds": [
+        {
+          "value": 500,
+          "colorMode": "warning",
+          "op": "gt",
+          "fill": true,
+          "line": true
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": [
+    "sms-platform",
+    "system-metrics"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Lead Capture & SMS Platform - System Metrics",
+  "uid": "sms-system-metrics",
+  "version": 1
+}
