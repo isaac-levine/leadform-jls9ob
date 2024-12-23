@@ -1,0 +1,28 @@
+* @lead-platform/core-team
+
+# Backend team owns backend codebase
+src/backend/ @lead-platform/backend-team
+
+# Frontend team owns frontend codebase
+src/web/ @lead-platform/frontend-team
+
+# AI team owns AI components
+src/backend/src/lib/ai/ @lead-platform/ai-team
+
+# Integration team owns SMS components
+src/backend/src/lib/sms/ @lead-platform/integration-team
+
+# DevOps team owns infrastructure
+infrastructure/ @lead-platform/devops-team
+
+# DevOps team owns CI/CD workflows
+.github/workflows/ @lead-platform/devops-team
+
+# Security team co-owns sensitive configurations
+src/backend/src/config/ @lead-platform/security-team @lead-platform/backend-team
+
+# Security team owns auth components
+src/backend/src/lib/auth/ @lead-platform/security-team
+
+# DevOps and Security teams co-own infrastructure code
+infrastructure/terraform/ @lead-platform/devops-team @lead-platform/security-team
