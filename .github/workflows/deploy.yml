@@ -1,0 +1,110 @@
+name: Production Deployment
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '18.x'
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  MONGODB_URI: ${{ secrets.MONGODB_URI }}
+
+permissions:
+  contents: read
+  deployments: write
+  statuses: write
+
+jobs:
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: ./src/web
+
+      - name: Install Backend Dependencies
+        run: npm ci
+        working-directory: ./src/backend
+
+      - name: Pull Vercel Environment
+        uses: vercel/actions/cli@v3
+        with:
+          args: pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project
+        uses: vercel/actions/cli@v3
+        with:
+          args: build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Production
+        id: deploy
+        uses: vercel/actions/cli@v3
+        with:
+          args: deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Verify Deployment
+        run: curl --fail ${{ steps.deploy.outputs.url }}/api/health
+
+      - name: Run Security Scan
+        run: npm audit --production
+
+      - name: Update Deployment Status
+        if: success()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: context.payload.deployment.id,
+              state: 'success',
+              environment_url: process.env.DEPLOYMENT_URL,
+              log_url: process.env.GITHUB_SERVER_URL + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId,
+              description: 'Deployment completed successfully'
+            })
+
+  post-deployment:
+    name: Post Deployment Tasks
+    needs: [deploy-production]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Monitor Deployment Health
+        run: |
+          for i in {1..5}; do
+            curl -f ${{ needs.deploy-production.outputs.url }}/api/health && exit 0 || sleep 30
+          done
+          exit 1
+
+      - name: Notify Team
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const success = context.job.status === 'success';
+            const message = success ? '✅ Production deployment completed successfully' : '❌ Production deployment failed';
+            core.notice(message);
