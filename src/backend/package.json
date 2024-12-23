@@ -48,7 +48,7 @@
     "rate-limiter-flexible": "^2.4.1",
     "redis": "^4.0.0",
     "tsyringe": "^4.8.0",
-    "twilio": "^4.14.0",
+    "twilio": "^5.4.0",
     "winston": "^3.10.0",
     "xss": "^1.0.0",
     "zod": "^3.0.0"
