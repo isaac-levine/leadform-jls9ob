@@ -1,0 +1,117 @@
+# Alertmanager configuration v0.25.0
+# Handles alert routing, grouping and notifications for the Lead Capture & SMS Platform
+
+global:
+  # Time after which an alert is declared resolved if not updated
+  resolve_timeout: 5m
+  
+  # SMTP configuration for email notifications
+  smtp_smarthost: smtp.leadcapture-sms.com:587
+  smtp_from: alerts@leadcapture-sms.com
+  smtp_auth_username: alertmanager
+  smtp_auth_identity: alertmanager@leadcapture-sms.com
+  smtp_auth_password: '{{ smtp_password }}'
+
+# Root routing tree configuration
+route:
+  # Default grouping and timing parameters
+  group_by: ['alertname', 'service', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: default-receiver
+
+  # Specific routing rules for different alert categories
+  routes:
+    # Critical SMS processing alerts
+    - match:
+        severity: critical
+        service: sms-processing
+      receiver: sms-critical-alerts
+      group_wait: 0s
+      repeat_interval: 15m
+
+    # Critical form submission alerts  
+    - match:
+        severity: critical
+        service: form-submission
+      receiver: form-critical-alerts
+      group_wait: 0s
+      repeat_interval: 15m
+
+    # Critical system uptime alerts
+    - match:
+        severity: critical
+        service: system-uptime
+      receiver: uptime-critical-alerts
+      group_wait: 0s
+      repeat_interval: 5m
+
+    # Warning level alerts
+    - match:
+        severity: warning
+      receiver: warning-alerts
+      group_wait: 1m
+      repeat_interval: 2h
+
+# Notification receivers configuration
+receivers:
+  # Default receiver for unmatched alerts
+  - name: default-receiver
+    email_configs:
+      - to: monitoring@leadcapture-sms.com
+        send_resolved: true
+        html: '{{ template "email.default.html" . }}'
+
+  # SMS processing critical alerts receiver
+  - name: sms-critical-alerts
+    email_configs:
+      - to: sms-oncall@leadcapture-sms.com
+        send_resolved: true
+        html: '{{ template "email.critical.html" . }}'
+    pagerduty_configs:
+      - service_key: '{{ pagerduty_sms_service_key }}'
+        send_resolved: true
+        severity: critical
+
+  # Form submission critical alerts receiver
+  - name: form-critical-alerts
+    email_configs:
+      - to: form-oncall@leadcapture-sms.com
+        send_resolved: true
+        html: '{{ template "email.critical.html" . }}'
+    pagerduty_configs:
+      - service_key: '{{ pagerduty_form_service_key }}'
+        send_resolved: true
+        severity: critical
+
+  # System uptime critical alerts receiver
+  - name: uptime-critical-alerts
+    email_configs:
+      - to: uptime-oncall@leadcapture-sms.com
+        send_resolved: true
+        html: '{{ template "email.critical.html" . }}'
+    pagerduty_configs:
+      - service_key: '{{ pagerduty_uptime_service_key }}'
+        send_resolved: true
+        severity: critical
+
+  # Warning alerts receiver
+  - name: warning-alerts
+    email_configs:
+      - to: alerts@leadcapture-sms.com
+        send_resolved: true
+        html: '{{ template "email.warning.html" . }}'
+
+# Inhibition rules to prevent alert spam
+inhibit_rules:
+  # Suppress warning alerts when there is a critical alert for the same issue
+  - source_match:
+      severity: critical
+    target_match:
+      severity: warning
+    equal: ['alertname', 'service', 'instance']
+
+# Custom notification templates
+templates:
+  - /etc/alertmanager/templates/*.tmpl
