@@ -1,0 +1,227 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+# Ensure only one workflow runs per ref/PR
+concurrency: 
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Set global timeout to prevent hung workflows
+run-name: CI for ${{ github.ref_name }}
+timeout-minutes: 60
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  statuses: write
+  security-events: write
+
+env:
+  NODE_VERSION: '18.x'
+  TEST_COVERAGE_THRESHOLD: '80'
+
+jobs:
+  test_backend:
+    name: Backend Tests (${{ matrix.test-group }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: true
+      matrix:
+        test-group: [unit, integration]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: src/backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/backend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: src/backend
+        run: npm run lint
+        
+      - name: Type check
+        working-directory: src/backend
+        run: npm run type-check
+
+      - name: Run ${{ matrix.test-group }} tests
+        working-directory: src/backend
+        run: |
+          npm run test:${{ matrix.test-group }} -- --coverage --ci --maxWorkers=2
+        env:
+          CI: true
+
+      - name: Check test coverage
+        working-directory: src/backend
+        run: |
+          COVERAGE=$(npm run test:coverage | grep "All files" | awk '{print $4}' | sed 's/%//')
+          if (( $(echo "$COVERAGE < ${{ env.TEST_COVERAGE_THRESHOLD }}" | bc -l) )); then
+            echo "Test coverage ($COVERAGE%) is below threshold (${{ env.TEST_COVERAGE_THRESHOLD }}%)"
+            exit 1
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-test-results-${{ matrix.test-group }}
+          path: src/backend/coverage/
+          retention-days: 14
+
+  test_frontend:
+    name: Frontend Tests (${{ matrix.test-group }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: true
+      matrix:
+        test-group: [unit, integration]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: src/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/web
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: src/web
+        run: npm run lint
+
+      - name: Type check
+        working-directory: src/web
+        run: npm run type-check
+
+      - name: Run ${{ matrix.test-group }} tests
+        working-directory: src/web
+        run: |
+          npm run test:${{ matrix.test-group }} -- --coverage --ci --maxWorkers=2
+        env:
+          CI: true
+
+      - name: Check test coverage
+        working-directory: src/web
+        run: |
+          COVERAGE=$(npm run test:coverage | grep "All files" | awk '{print $4}' | sed 's/%//')
+          if (( $(echo "$COVERAGE < ${{ env.TEST_COVERAGE_THRESHOLD }}" | bc -l) )); then
+            echo "Test coverage ($COVERAGE%) is below threshold (${{ env.TEST_COVERAGE_THRESHOLD }}%)"
+            exit 1
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-test-results-${{ matrix.test-group }}
+          path: src/web/coverage/
+          retention-days: 14
+
+  build:
+    name: Build Verification
+    needs: [test_backend, test_frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache backend dependencies
+        uses: actions/cache@v3
+        with:
+          path: src/backend/node_modules
+          key: ${{ runner.os }}-backend-${{ hashFiles('src/backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-backend-
+
+      - name: Cache frontend dependencies
+        uses: actions/cache@v3
+        with:
+          path: src/web/node_modules
+          key: ${{ runner.os }}-frontend-${{ hashFiles('src/web/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-
+
+      - name: Install backend dependencies
+        working-directory: src/backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: src/web
+        run: npm ci
+
+      - name: Build backend
+        working-directory: src/backend
+        run: npm run build
+        env:
+          CI: true
+          NODE_ENV: production
+
+      - name: Build frontend
+        working-directory: src/web
+        run: npm run build
+        env:
+          CI: true
+          NODE_ENV: production
+
+      - name: Archive build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: |
+            src/backend/dist
+            src/web/.next
+          retention-days: 14
+
+      - name: Check bundle size
+        working-directory: src/web
+        run: npm run analyze-bundle
+        continue-on-error: true
+
+  security:
+    name: Security Scan
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run security audit
+        run: |
+          cd src/backend && npm audit
+          cd ../web && npm audit
+
+      - name: Run SAST scan
+        uses: github/codeql-action/analyze@v2
+        with:
+          languages: javascript
