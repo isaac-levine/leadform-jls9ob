@@ -1,0 +1,258 @@
+---
+# ConfigMap containing Prometheus configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-configmap
+  namespace: monitoring
+  labels:
+    app: prometheus
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        environment: production
+
+    rule_files:
+      - /etc/prometheus/rules.yml
+      - /etc/prometheus/alerts.yml
+
+    scrape_configs:
+      - job_name: 'api-server'
+        metrics_path: '/metrics'
+        static_configs:
+          - targets: ['api-server:8080']
+        metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: 'http_request_duration_seconds.*|http_requests_total|system_memory_usage'
+            action: keep
+
+      - job_name: 'sms-service'
+        metrics_path: '/metrics'
+        static_configs:
+          - targets: ['sms-service:8081']
+        metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: 'sms_processing_duration_seconds.*|sms_delivery_success_rate|queue_size'
+            action: keep
+
+      - job_name: 'message-queue'
+        metrics_path: '/metrics'
+        static_configs:
+          - targets: ['message-queue:8082']
+        metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: 'queue_length.*|processing_time|error_rate'
+            action: keep
+
+  rules.yml: |
+    groups:
+      - name: recording_rules
+        rules:
+          - record: job:http_request_duration_seconds:avg
+            expr: avg(http_request_duration_seconds) by (job)
+          - record: job:sms_processing_duration_seconds:avg
+            expr: avg(sms_processing_duration_seconds) by (job)
+
+  alerts.yml: |
+    groups:
+      - name: sla_alerts
+        rules:
+          - alert: HighMessageProcessingTime
+            expr: sms_processing_duration_seconds > 5
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Message processing time exceeded SLA"
+              description: "Messages taking longer than 5 seconds to process"
+
+          - alert: HighFormSubmissionTime
+            expr: http_request_duration_seconds{path="/api/forms"} > 2
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Form submission time exceeded SLA"
+              description: "Form submissions taking longer than 2 seconds"
+
+          - alert: LowUptimeRate
+            expr: avg_over_time(up[24h]) < 0.999
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "System uptime below SLA"
+              description: "System uptime has dropped below 99.9%"
+
+---
+# Service Account for Prometheus
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: monitoring
+
+---
+# RBAC Configuration
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-role
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/proxy", "services", "endpoints", "pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["extensions"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-role
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: monitoring
+
+---
+# Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-storage
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast-ssd
+  resources:
+    requests:
+      storage: 100Gi
+
+---
+# Prometheus Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      securityContext:
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.45.0
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.retention.time=30d
+            - --web.enable-lifecycle
+            - --web.enable-admin-api
+          ports:
+            - containerPort: 9090
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+              readOnly: true
+            - name: storage
+              mountPath: /prometheus
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "500m"
+            limits:
+              memory: "4Gi"
+              cpu: "1000m"
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-configmap
+        - name: storage
+          persistentVolumeClaim:
+            claimName: prometheus-storage
+
+---
+# Prometheus Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: http
+  selector:
+    app: prometheus
+
+---
+# Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus-network-policy
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
