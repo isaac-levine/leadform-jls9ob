@@ -1,0 +1,63 @@
+# Kubernetes Ingress manifest for AI-Driven Lead Capture & SMS Platform
+# Version: networking.k8s.io/v1
+# Purpose: Configure external access and secure routing for the web application
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lead-capture-ingress
+  namespace: default
+  annotations:
+    # Ingress Controller Configuration
+    kubernetes.io/ingress.class: "nginx"
+    
+    # TLS/SSL Configuration with Let's Encrypt
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+    nginx.ingress.kubernetes.io/ssl-ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+    
+    # Request Handling Configuration
+    nginx.ingress.kubernetes.io/proxy-body-size: "8m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    
+    # Security Headers Configuration
+    nginx.ingress.kubernetes.io/hsts: "true"
+    nginx.ingress.kubernetes.io/hsts-max-age: "31536000"
+    nginx.ingress.kubernetes.io/hsts-include-subdomains: "true"
+    nginx.ingress.kubernetes.io/hsts-preload: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "X-Content-Type-Options: nosniff";
+    
+    # CORS Configuration
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    
+    # Monitoring Configuration
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "10254"
+
+spec:
+  # TLS Configuration
+  tls:
+  - hosts:
+    - app.leadcapture.com
+    secretName: leadcapture-tls
+  
+  # Routing Rules
+  rules:
+  - host: app.leadcapture.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web-service
+            port:
+              number: 80
