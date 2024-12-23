@@ -45,7 +45,7 @@
     "opossum": "^7.1.0",
     "pino": "^8.0.0",
     "rate-limit-redis": "^3.0.0",
-    "rate-limiter-flexible": "^2.4.1",
+    "rate-limiter-flexible": "^5.0.4",
     "redis": "^4.0.0",
     "tsyringe": "^4.8.0",
     "twilio": "^4.14.0",
