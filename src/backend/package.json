@@ -44,7 +44,7 @@
     "openai": "^4.0.0",
     "opossum": "^7.1.0",
     "pino": "^8.0.0",
-    "rate-limit-redis": "^3.0.0",
+    "rate-limit-redis": "^4.2.0",
     "rate-limiter-flexible": "^2.4.1",
     "redis": "^4.0.0",
     "tsyringe": "^4.8.0",
