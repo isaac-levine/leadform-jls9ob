@@ -1,0 +1,238 @@
+# Grafana v9.5.0 Kubernetes Deployment Manifest
+# Purpose: Monitoring dashboard deployment for Lead Capture & SMS Platform
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-configmap
+  namespace: monitoring
+  labels:
+    app: grafana
+data:
+  grafana.ini: |
+    [server]
+    domain = grafana.cluster.local
+    root_url = %(protocol)s://%(domain)s/
+    serve_from_sub_path = true
+
+    [auth]
+    disable_login_form = false
+    oauth_auto_login = false
+
+    [security]
+    admin_user = admin
+    allow_embedding = true
+    cookie_secure = true
+    cookie_samesite = strict
+
+    [users]
+    allow_sign_up = false
+    auto_assign_org_role = Viewer
+
+    [dashboards]
+    min_refresh_interval = 30s
+    default_home_dashboard_path = /var/lib/grafana/dashboards/system-metrics.json
+
+    [alerting]
+    enabled = true
+    execute_alerts = true
+    evaluation_timeout_seconds = 30
+
+    [metrics]
+    enabled = true
+    basic_auth_username = metrics
+    interval_seconds = 10
+
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-service:9090
+        isDefault: true
+        version: 1
+        editable: false
+        jsonData:
+          timeInterval: "30s"
+          queryTimeout: "60s"
+          httpMethod: "POST"
+          manageAlerts: true
+        secureJsonData:
+          httpHeaderValue1: "Bearer ${PROMETHEUS_TOKEN}"
+
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'Lead Capture & SMS Platform'
+        orgId: 1
+        folder: 'Lead Capture & SMS Platform'
+        type: file
+        disableDeletion: true
+        updateIntervalSeconds: 30
+        allowUiUpdates: false
+        options:
+          path: /var/lib/grafana/dashboards
+          foldersFromFilesStructure: true
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+    spec:
+      serviceAccountName: grafana
+      securityContext:
+        fsGroup: 472
+        supplementalGroups:
+          - 472
+      containers:
+        - name: grafana
+          image: grafana/grafana:9.5.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin-credentials
+                  key: admin-password
+          volumeMounts:
+            - name: config
+              mountPath: /etc/grafana
+            - name: storage
+              mountPath: /var/lib/grafana
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+              readOnly: true
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            runAsUser: 472
+            runAsGroup: 472
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: config
+          configMap:
+            name: grafana-configmap
+        - name: storage
+          persistentVolumeClaim:
+            claimName: grafana-storage
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+  namespace: monitoring
+  labels:
+    app: grafana
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3000"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: grafana
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-storage
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: grafana-clusterrole
+  labels:
+    app: grafana
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "watch", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: grafana-clusterrolebinding
+  labels:
+    app: grafana
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: grafana-clusterrole
+subjects:
+  - kind: ServiceAccount
+    name: grafana
+    namespace: monitoring
