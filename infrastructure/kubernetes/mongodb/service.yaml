@@ -1,0 +1,39 @@
+# MongoDB Service manifest for AI-Driven Lead Capture & SMS Platform
+# Version: 1.0
+# This service exposes MongoDB deployment within the cluster with internal access only
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: mongodb
+  namespace: default
+  labels:
+    app: mongodb
+    tier: database
+    component: storage
+    managed-by: lead-capture-platform
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "27017"
+    prometheus.io/path: "/metrics"
+
+spec:
+  # Using ClusterIP for internal-only access
+  type: ClusterIP
+  
+  # Port configuration for MongoDB standard port
+  ports:
+    - port: 27017
+      targetPort: 27017
+      protocol: TCP
+      name: mongodb
+  
+  # Selector matching MongoDB deployment pods
+  selector:
+    app: mongodb
+  
+  # Session affinity configuration for stable connections
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hour timeout for session affinity
